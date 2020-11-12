@@ -22,12 +22,14 @@ const autoCompleteConfig = {
 		return response.data.Search;
 	}
 };
+let leftSide;
+let rightSide;
 createAutoComplete({
 	root: document.querySelector('#left-autocomplete'),
 	...autoCompleteConfig,
 	onOptionSelect: (movie) => {
 		document.querySelector('.tutorial').classList.add('is-hidden');
-		onMovieSelect(movie, document.querySelector('#left-summary'));
+		onMovieSelect(movie, document.querySelector('#left-summary'), 'left');
 	}
 });
 createAutoComplete({
@@ -35,11 +37,11 @@ createAutoComplete({
 	...autoCompleteConfig,
 	onOptionSelect: (movie) => {
 		document.querySelector('.tutorial').classList.add('is-hidden');
-		onMovieSelect(movie, document.querySelector('#right-summary'));
+		onMovieSelect(movie, document.querySelector('#right-summary'), 'right');
 	}
 });
 
-const onMovieSelect = async (movie, destination) => {
+const onMovieSelect = async (movie, destination, side) => {
 	//console.log(movie.imdbID);
 	const response = await axios.get('http://www.omdbapi.com/', {
 		params: {
@@ -47,12 +49,62 @@ const onMovieSelect = async (movie, destination) => {
 			i: `${movie.imdbID}`
 		}
 	});
-	console.log(response.data);
-	console.log(destination);
+	//console.log(response.data);
+	//console.log(destination);
 	destination.innerHTML = movieTemplate(response.data);
+	if (side === 'left') {
+		leftSide = response.data;
+	} else {
+		rightSide = response.data;
+	}
+
+	if (leftSide && rightSide) {
+		runComparison();
+	}
+};
+const runComparison = () => {
+	const leftSideStats = document.querySelectorAll('#left-summary .notification');
+	const rightSideStats = document.querySelectorAll('#right-summary .notification');
+
+	//console.log(leftSideStats);
+	leftSideStats.forEach((leftStat, index) => {
+		const rightStat = rightSideStats[index];
+
+		console.log(rightStat, index);
+
+		const leftVal = leftStat.dataset.value;
+		const rightVal = rightStat.dataset.value;
+		if (rightVal > leftVal) {
+			leftStat.classList.remove('is-primary');
+			leftStat.classList.add('is-warning');
+		}
+		if (rightVal < leftVal) {
+			rightStat.classList.remove('is-primary');
+			rightStat.classList.add('is-warning');
+		}
+	});
 };
 
 const movieTemplate = (movieDetail) => {
+	console.log(movieDetail);
+	const dollar =
+		movieDetail.BoxOffice === 'N/A' ? 0 : parseInt(movieDetail.BoxOffice.replace(/\$/g, '').replace(/,/g, ''));
+	const metascore = movieDetail.Metascore === 'N/A' ? 0 : parseInt(movieDetail.Metascore);
+	const imdbRating = movieDetail.imdbRating === 'N/A' ? 0 : parseFloat(movieDetail.imdbRating);
+	const imdbVotes = movieDetail.imdbVotes === 'N/A' ? 0 : parseInt(movieDetail.imdbVotes.replace(/,/g, ''));
+
+	let count = 0;
+	const awards = movieDetail.Awards.split(' ').forEach((word) => {
+		const value = parseInt(word);
+
+		if (isNaN(value)) {
+			return;
+		} else {
+			count += value;
+		}
+	});
+	console.log(dollar, metascore, imdbRating, imdbVotes, count);
+
 	return `
 	<article class="media">
 		<figure class="media-left">
@@ -68,23 +120,23 @@ const movieTemplate = (movieDetail) => {
 			</div>
 		</div>
 	</article>
-	<article class="notification is-primary">
+	<article data-value=${count} class="notification is-primary">
 		<p class="title">${movieDetail.Awards}</p>
 		<p class="subtitle">Awards</p>
 	</article>
-	<article class="notification is-primary">
+	<article data-value=${dollar} class="notification is-primary">
 		<p class="title">${movieDetail.BoxOffice}</p>
 		<p class="subtitle">BoxOffice</p>
 	</article>
-	<article class="notification is-primary">
+	<article data-value=${metascore} class="notification is-primary">
 		<p class="title">${movieDetail.Metascore}</p>
 		<p class="subtitle">Metascore</p>
 	</article>
-	<article class="notification is-primary">
+	<article data-value=${imdbRating} class="notification is-primary">
 		<p class="title">${movieDetail.imdbRating}</p>
 		<p class="subtitle">IMDB Rating</p>
 	</article>
-	<article class="notification is-primary">
+	<article data-value=${imdbVotes} class="notification is-primary">
 		<p class="title">${movieDetail.imdbVotes}</p>
 		<p class="subtitle">IMDB Votes</p>
 	</article>
